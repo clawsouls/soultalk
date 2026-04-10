@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SoulTalk Observer Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0D0D1A;
+    color: #E0E0E0;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 14px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #111127;
+    border-bottom: 1px solid #1E1E3A;
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 18px;
+    color: #39FF14;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .badge {
+    background: #1E1E3A;
+    color: #888;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.3s;
+  }
+  .status-dot.connected { background: #39FF14; box-shadow: 0 0 6px #39FF14; }
+  .status-dot.disconnected { background: #FF4444; }
+
+  /* Layout */
+  .layout {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 240px;
+    background: #111127;
+    border-right: 1px solid #1E1E3A;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 12px 16px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    border-bottom: 1px solid #1E1E3A;
+  }
+  .channel-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .channel-item {
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .channel-item:hover { background: #1A1A36; }
+  .channel-item.active { background: #1E1E3A; color: #39FF14; }
+  .channel-name { font-size: 13px; }
+  .channel-count {
+    font-size: 10px;
+    color: #555;
+    background: #1A1A36;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .channel-item.active .channel-count { color: #39FF14; background: #0D2A0D; }
+
+  /* Filters */
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #1E1E3A;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: #1A1A36;
+    border: 1px solid #2A2A4A;
+    color: #888;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: #39FF14; color: #CCC; }
+  .filter-btn.active { border-color: #39FF14; color: #39FF14; background: #0D2A0D; }
+
+  /* Main content */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Messages */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .messages::-webkit-scrollbar { width: 6px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: #2A2A4A; border-radius: 3px; }
+
+  .msg {
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    line-height: 1.5;
+  }
+  .msg:hover { background: #111127; }
+
+  .msg-time {
+    color: #444;
+    font-size: 11px;
+    margin-right: 8px;
+  }
+  .msg-sender {
+    font-weight: 600;
+    margin-right: 8px;
+  }
+  .msg-engine {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 8px;
+    vertical-align: middle;
+    background: #1E1E3A;
+    color: #666;
+  }
+  .msg-content { color: #CCC; }
+  .msg-type {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  /* Message types */
+  .msg.system { opacity: 0.6; }
+  .msg.system .msg-content { color: #888; font-style: italic; }
+
+  .msg.approval_request {
+    background: rgba(255, 200, 0, 0.08);
+    border-left: 3px solid #FFC800;
+  }
+  .msg.approval_request .msg-type { background: #3A2A00; color: #FFC800; }
+
+  .msg.approval_response .msg-type { background: #0D2A0D; color: #39FF14; }
+  .msg.tool_request .msg-type { background: #1A1A3A; color: #7B7BFF; }
+  .msg.tool_result .msg-type { background: #1A2A3A; color: #7BD4FF; }
+
+  /* Approval actions */
+  .approval-actions {
+    margin-top: 6px;
+    display: flex;
+    gap: 8px;
+  }
+  .approval-btn {
+    padding: 4px 14px;
+    border-radius: 4px;
+    border: 1px solid;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+  .approve-btn {
+    border-color: #39FF14;
+    color: #39FF14;
+    background: transparent;
+  }
+  .approve-btn:hover { background: #0D2A0D; }
+  .reject-btn {
+    border-color: #FF4444;
+    color: #FF4444;
+    background: transparent;
+  }
+  .reject-btn:hover { background: #2A0D0D; }
+
+  /* Sender colors */
+  .sender-0 { color: #39FF14; }
+  .sender-1 { color: #FF6B6B; }
+  .sender-2 { color: #4ECDC4; }
+  .sender-3 { color: #FFE66D; }
+  .sender-4 { color: #A78BFA; }
+  .sender-5 { color: #F472B6; }
+  .sender-6 { color: #60A5FA; }
+  .sender-7 { color: #34D399; }
+
+  /* Empty state */
+  .empty-state {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #444;
+    font-size: 14px;
+  }
+
+  /* Info bar */
+  .info-bar {
+    padding: 8px 20px;
+    background: #111127;
+    border-top: 1px solid #1E1E3A;
+    font-size: 11px;
+    color: #555;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>SOULTALK</h1>
+  <div class="header-right">
+    <span class="badge">Observer Mode</span>
+    <div class="status-indicator">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Disconnected</span>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-header">Channels</div>
+    <div class="channel-list" id="channelList">
+      <div class="empty-state" style="padding:20px;font-size:12px;">Loading...</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="message">Messages</button>
+      <button class="filter-btn" data-filter="system">System</button>
+      <button class="filter-btn" data-filter="approval_request">Approvals</button>
+      <button class="filter-btn" data-filter="tool_request">Tools</button>
+    </div>
+    <div class="messages" id="messages">
+      <div class="empty-state">Select a channel to observe</div>
+    </div>
+    <div class="info-bar">
+      <span id="infoLeft">No channel selected</span>
+      <span id="infoRight">0 connections</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin;
+const WS_BASE = `ws://${window.location.host}`;
+
+let ws = null;
+let currentChannel = null;
+let currentFilter = 'all';
+let senderColorMap = {};
+let senderColorIdx = 0;
+let autoScroll = true;
+
+const $messages = document.getElementById('messages');
+const $channelList = document.getElementById('channelList');
+const $statusDot = document.getElementById('statusDot');
+const $statusText = document.getElementById('statusText');
+const $infoLeft = document.getElementById('infoLeft');
+const $infoRight = document.getElementById('infoRight');
+
+// --- Channels ---
+
+async function loadChannels() {
+  // We need a soul_id to list channels. Use a special observer endpoint or list all.
+  // For the dashboard, fetch all channels by querying the DB indirectly.
+  // Workaround: try fetching with a known soul, or add an admin endpoint.
+  // For MVP, we'll try to get channels from messages table.
+  try {
+    const res = await fetch(`${API}/channels/all`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    renderChannels(data.channels || []);
+  } catch {
+    $channelList.innerHTML = '<div class="empty-state" style="padding:20px;font-size:12px;color:#555;">No channels found</div>';
+  }
+}
+
+function renderChannels(channels) {
+  if (!channels.length) {
+    $channelList.innerHTML = '<div class="empty-state" style="padding:20px;font-size:12px;color:#555;">No channels yet</div>';
+    return;
+  }
+  $channelList.innerHTML = channels.map(ch => `
+    <div class="channel-item${currentChannel === ch.id ? ' active' : ''}" data-id="${ch.id}">
+      <span class="channel-name">${esc(ch.name)}</span>
+      <span class="channel-count">${ch.message_count || 0}</span>
+    </div>
+  `).join('');
+
+  $channelList.querySelectorAll('.channel-item').forEach(el => {
+    el.addEventListener('click', () => selectChannel(el.dataset.id, channels));
+  });
+}
+
+function selectChannel(id, channels) {
+  currentChannel = id;
+  const ch = channels?.find(c => c.id === id);
+  $infoLeft.textContent = ch ? `#${ch.name} (${ch.member_count || '?'} members)` : `#${id}`;
+  senderColorMap = {};
+  senderColorIdx = 0;
+
+  // Re-render to update active state
+  $channelList.querySelectorAll('.channel-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === id);
+  });
+
+  $messages.innerHTML = '';
+  connectWS(id);
+}
+
+// --- WebSocket ---
+
+function connectWS(channelId) {
+  if (ws) {
+    ws.close();
+    ws = null;
+  }
+
+  setStatus('connecting');
+
+  // Connect as observer (soul_id=OBSERVER)
+  const url = `${WS_BASE}/ws?channel_id=${channelId}&soul_id=OBSERVER`;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => setStatus('connected');
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'ping') {
+        ws.send(JSON.stringify({ type: 'pong' }));
+        return;
+      }
+      if (msg.type === 'initial') {
+        // Batch of recent messages
+        $messages.innerHTML = '';
+        (msg.data || []).forEach(m => appendMessage(m));
+        scrollBottom();
+        return;
+      }
+      if (msg.type === 'message' || msg.type === 'system') {
+        appendMessage(msg.data);
+        if (autoScroll) scrollBottom();
+      }
+    } catch { /* ignore parse errors */ }
+  };
+
+  ws.onclose = () => setStatus('disconnected');
+  ws.onerror = () => setStatus('disconnected');
+}
+
+function setStatus(state) {
+  $statusDot.className = 'status-dot ' + (state === 'connected' ? 'connected' : state === 'disconnected' ? 'disconnected' : '');
+  $statusText.textContent = state === 'connected' ? 'Connected' : state === 'connecting' ? 'Connecting...' : 'Disconnected';
+}
+
+// --- Messages ---
+
+function getSenderColor(sender) {
+  if (!senderColorMap[sender]) {
+    senderColorMap[sender] = senderColorIdx % 8;
+    senderColorIdx++;
+  }
+  return `sender-${senderColorMap[sender]}`;
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts.includes('T') ? ts : ts + 'Z');
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+}
+
+function appendMessage(m) {
+  if (currentFilter !== 'all' && m.type !== currentFilter) return;
+
+  const div = document.createElement('div');
+  div.className = `msg ${m.type || 'message'}`;
+  div.dataset.type = m.type || 'message';
+
+  const senderClass = m.sender_soul_id === 'SYSTEM' ? '' : getSenderColor(m.sender_identity);
+  const engineBadge = m.engine ? `<span class="msg-engine">${esc(m.engine)}</span>` : '';
+  const typeBadge = m.type && m.type !== 'message' ? `<span class="msg-type">${esc(m.type)}</span>` : '';
+
+  let content = esc(m.content || '');
+
+  // Try to parse JSON content for approval responses
+  if (m.type === 'approval_response') {
+    try {
+      const parsed = JSON.parse(m.content);
+      content = `${parsed.approved ? 'APPROVED' : 'REJECTED'}${parsed.comment ? ': ' + esc(parsed.comment) : ''}`;
+    } catch { /* use raw */ }
+  }
+
+  let approvalActions = '';
+  if (m.type === 'approval_request' && m.requires_approval) {
+    approvalActions = `
+      <div class="approval-actions">
+        <button class="approval-btn approve-btn" onclick="respondApproval('${m.id}', true)">Approve</button>
+        <button class="approval-btn reject-btn" onclick="respondApproval('${m.id}', false)">Reject</button>
+      </div>`;
+  }
+
+  div.innerHTML = `
+    <span class="msg-time">${formatTime(m.created_at)}</span>
+    ${typeBadge}
+    <span class="msg-sender ${senderClass}">${esc(m.sender_identity || m.sender_soul_id)}</span>
+    ${engineBadge}
+    <span class="msg-content">${content}</span>
+    ${approvalActions}
+  `;
+
+  $messages.appendChild(div);
+}
+
+async function respondApproval(msgId, approved) {
+  if (!currentChannel) return;
+  try {
+    await fetch(`${API}/channels/${currentChannel}/approvals/${msgId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        soul_id: 'OBSERVER',
+        identity: 'Observer',
+        approved,
+        comment: approved ? 'Approved from dashboard' : 'Rejected from dashboard'
+      })
+    });
+  } catch (e) {
+    console.error('Approval failed:', e);
+  }
+}
+
+function scrollBottom() {
+  requestAnimationFrame(() => {
+    $messages.scrollTop = $messages.scrollHeight;
+  });
+}
+
+// Track auto-scroll
+$messages.addEventListener('scroll', () => {
+  const { scrollTop, scrollHeight, clientHeight } = $messages;
+  autoScroll = scrollHeight - scrollTop - clientHeight < 50;
+});
+
+// --- Filters ---
+
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    // Reconnect to re-render with filter
+    if (currentChannel) {
+      selectChannel(currentChannel);
+    }
+  });
+});
+
+// --- Helpers ---
+
+function esc(s) {
+  const el = document.createElement('span');
+  el.textContent = s;
+  return el.innerHTML;
+}
+
+// --- Init ---
+
+loadChannels();
+// Refresh channel list every 15s
+setInterval(loadChannels, 15000);
+</script>
+</body>
+</html>

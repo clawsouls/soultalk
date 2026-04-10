@@ -42,4 +42,32 @@ db.run(`CREATE TABLE IF NOT EXISTS messages (
 db.run(`CREATE INDEX IF NOT EXISTS idx_messages_channel ON messages(channel_id, created_at)`);
 db.run(`CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(channel_id, type)`);
 
+// Phase 3: Audit log
+db.run(`CREATE TABLE IF NOT EXISTS audit_log (
+  id TEXT PRIMARY KEY,
+  timestamp TEXT DEFAULT (datetime('now')),
+  actor_soul_id TEXT NOT NULL,
+  actor_identity TEXT NOT NULL,
+  action TEXT NOT NULL,
+  channel_id TEXT,
+  message_id TEXT,
+  details TEXT DEFAULT '{}',
+  ip_address TEXT DEFAULT ''
+)`);
+
+db.run(`CREATE INDEX IF NOT EXISTS idx_audit_channel ON audit_log(channel_id, timestamp)`);
+db.run(`CREATE INDEX IF NOT EXISTS idx_audit_actor ON audit_log(actor_soul_id, timestamp)`);
+db.run(`CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action, timestamp)`);
+
+// Phase 3: Approval status tracking
+db.run(`CREATE TABLE IF NOT EXISTS approval_status (
+  message_id TEXT PRIMARY KEY,
+  status TEXT DEFAULT 'pending',
+  responder_soul_id TEXT,
+  responder_identity TEXT,
+  responded_at TEXT,
+  comment TEXT DEFAULT '',
+  FOREIGN KEY (message_id) REFERENCES messages(id)
+)`);
+
 export default db;
