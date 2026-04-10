@@ -1,0 +1,20 @@
+{
+  "name": "soultalk",
+  "version": "0.1.0",
+  "description": "Agent-to-agent messaging for Soul Spec agents",
+  "main": "src/server.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch run src/server.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "hono": "^4.12.12"
+  }
+}
